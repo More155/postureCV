@@ -4,14 +4,12 @@ import argparse
 
 import cv2
 
-from src.angulos import calcular_angulo
 from src.detector_pose import DetectorPose, extraer_puntos
-from src.suavizado import PromedioMovil
-from src.superposicion import dibujar_esqueleto, escribir_texto
+from src.ejercicios import Sentadilla
+from src.superposicion import COLOR_ALERTA, dibujar_esqueleto, escribir_texto
 
 # Se asume un video de unos 30 cuadros por segundo (33 ms por cuadro).
 MS_POR_CUADRO = 33
-VENTANA_SUAVIZADO = 5
 TECLA_SALIR = ord("q")
 
 
@@ -56,13 +54,13 @@ def abrir_fuente(fuente):
     return captura
 
 
-def procesar_cuadro(cuadro, detector, suavizador, lado, timestamp_ms):
+def procesar_cuadro(cuadro, detector, sentadilla, lado, timestamp_ms):
     """Detecta la pose en un cuadro y dibuja el resultado sobre él.
 
     Args:
         cuadro: Imagen de OpenCV (se modifica).
         detector: Instancia de DetectorPose.
-        suavizador: Instancia de PromedioMovil para el ángulo de rodilla.
+        sentadilla: Instancia de Sentadilla que lleva la cuenta.
         lado: "izquierdo" o "derecho".
         timestamp_ms: Instante del cuadro en milisegundos.
     """
@@ -75,12 +73,16 @@ def procesar_cuadro(cuadro, detector, suavizador, lado, timestamp_ms):
     if puntos is None:
         return
 
-    angulo_rodilla = calcular_angulo(
-        puntos["cadera"], puntos["rodilla"], puntos["tobillo"]
-    )
-    angulo_suave = suavizador.agregar(angulo_rodilla)
+    sentadilla.actualizar(puntos)
     dibujar_esqueleto(cuadro, puntos)
-    escribir_texto(cuadro, f"Rodilla: {angulo_suave:.0f} grados", (20, 40))
+    escribir_texto(
+        cuadro, f"Rodilla: {sentadilla.angulo_rodilla:.0f} grados", (20, 40)
+    )
+    escribir_texto(
+        cuadro, f"Repeticiones: {sentadilla.repeticiones}", (20, 80)
+    )
+    if sentadilla.espalda_inclinada:
+        escribir_texto(cuadro, "Espalda recta!", (20, 120), COLOR_ALERTA)
 
 
 def main():
@@ -93,17 +95,18 @@ def main():
         print(error)
         return
 
-    suavizador = PromedioMovil(VENTANA_SUAVIZADO)
+    sentadilla = Sentadilla()
     numero_cuadro = 0
     try:
         while True:
             hay_cuadro, cuadro = captura.read()
             if not hay_cuadro:
+                print("No se recibieron cuadros de la fuente de video.")
                 break
             procesar_cuadro(
                 cuadro,
                 detector,
-                suavizador,
+                sentadilla,
                 argumentos.lado,
                 numero_cuadro * MS_POR_CUADRO,
             )

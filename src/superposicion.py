@@ -5,6 +5,7 @@ import cv2
 COLOR_PUNTO = (0, 255, 0)
 COLOR_LINEA = (255, 255, 255)
 COLOR_TEXTO = (255, 255, 255)
+COLOR_ALERTA = (0, 0, 255)
 
 ORDEN_ARTICULACIONES = ("hombro", "cadera", "rodilla", "tobillo")
 RADIO_PUNTO = 6
